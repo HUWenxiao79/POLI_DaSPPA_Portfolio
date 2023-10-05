@@ -1,0 +1,349 @@
+---
+title: "Data Wrangling (1)"
+author: "Haohan Chen"
+date: "Last update: `r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_document: default
+  pdf_document: default
+  md_document: default
+knit: (function(inputFile, encoding){rmarkdown::render(inputFile, encoding = encoding, output_format = "all", knit_root_dir = getwd())})
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Objectives of this Lecture
+
+This lecture introduces data wrangling with R. Using V-Dem data as an example, we will learn how to use the wrangle data with a set of [`tidyverse`](https://www.tidyverse.org/) functionality. Specifically, we will focus on functions...
+
+1.  to import and export data: `read_csv` , `write_csv` (with a brief introduction to other data import/ export functions from [`readr`](https://readr.tidyverse.org/)).
+
+2.  to take a subset of *columns* in the existing data: `select`
+
+3.  to rename columns: `rename`
+
+4.  to take a subset of *rows* by some simple conditions: `slice_`
+
+5.  to take a subset of *rows* by some more complicated conditions: `filter`
+
+6.  to sort the rows based on the value of one or multiple columns: `arrange`
+
+7.  to perform (4) (5) (6) group by group: `group_by`, `ungroup`
+
+8.  to create new columns in the data: `group_by`, `mutate`, `ungroup`
+
+9.  to summarize the data: `group_by`, `summarise`, `ungroup`
+
+## Outline of In-Class Demo
+
+To demonstrate the above functionality, we will use real-world political data from [V-Dem](https://v-dem.net/). Specifically, we will use the above function to explore the state of global economic development from 1984 to 2022. Our effort will take the following step (with one-on-one mappings with the above tools).
+
+1.  Read a part of pre-processed V-Dem data into R: 1984-2022 "external" data in the V-Dem dataset.
+2.  Consulting the dataset's [codebook](https://github.com/haohanchen/HKU_POLI3148_23Fall/blob/main/_DataPublic_/vdem/documentation/codebook_v13.pdf) and take a **subset** of indicators of *economic development* (along with country-year identifiers).
+    -   *See a list of country-yer identifiers on p. 5 of the codebook (under "1.7 Identifier Variables in the V-Dem Datasets").*
+
+    -   *See a list of development indicators on p. 23 of the codebook (under "9. Background Factors").*
+3.  Rename the column to name their names informative to readers.
+4.  Find the country-year with the *highest* and *lowest* level of economic development. In addition, create a dataset containing a random sample of country-year in the dataset.
+5.  Create a dataset focusing on the economic development of Asian countries and regions; Create a dataset that contains only countries/ regions whose development level pass certain threshold.
+6.  Create a dataset whose rows are sorted by the development level of country-year.
+7.  Create a dataset that contains the year of the higest development level for each country/ region respectively.
+8.  Add the following economic indicators to the data:
+    1.  Country-year development level with reference to that of 1984.
+
+    2.  Year-on-year economic growth.
+9.  Perform a data availability/ integrity check. Then aggregate the data into a new country-level dataset which contains the following indicators:
+    1.  Average development level from 1984 to 2022.
+
+    2.  Magnitude of growth from 1984 to 2022.
+
+## In-Class Exercise
+
+The quality of education has a decisive effect on a country's future development. Applying the data wrangling tools we introduce in this lecture, perform the following task:
+
+1.  **Coodbook lookup**. Look up the codebook, answer the following questions:
+    1.  What indicators regarding the quality of education are available in the V-Dem datasets?
+
+    2.  What are the data's coverage (i.e., for which countries and years do we have data?)
+
+    3.  What are their sources? Provide the link to least 1 source.
+2.  **Subset by columns**
+    1.  Create a dataset containing only the country-year identifiers and indicators of education quality.
+
+    2.  Rename the columns of education quality to make them informative.
+3.  **Subset by rows**
+    1.  List 5 countries-years that have the highest education level among its population.
+
+    2.  List 5 countries-years that suffer from the most severe inequality in education.
+4.  **Summarize the data**
+    1.  Check data availability: For which countries and years are the indicators of education quality available?
+
+    2.  Create two types of country-level indicators of education quality
+
+        1.  Average level of education quality from 1984 to 2022
+
+        2.  Change of education quality from 1984 to 2022
+
+    3.  Examine the data and *briefly* discuss: Which countries perform the best and the worst in terms of education quality in the past four decades?
+
+**Submission requirement:** You will submit your outputs through Moodle. In your submission:
+
+1.  Attach a PDF document rendered by Rmarkdown
+2.  In the text field of your submission, include the link to the corresponding Rmarkdown file in your *DaSPPA portfolio* GitHub repo.
+
+**Due:** October 4, 2023
+
+*Note:* *Please* *only use the functions we cover in this lecture for this exercise. There is [absolutely no need]{.underline} to perform any data visualization for this exercise... We will get there in later lectures.*
+
+## Further reading
+
+-   R for Data Science (2e) Chapters 4, 5, 8: <https://r4ds.hadley.nz/>
+
+-   `readr` documentation (note: read the "cheatsheet"): <https://readr.tidyverse.org/>
+
+-   `dplyr` documentation (note: read the "cheatsheet"): <https://dplyr.tidyverse.org/>
+
+-   V-Dem documentation: <https://v-dem.net/>
+
+## Demo
+
+### 0. Load the `tidyverse` Packages
+
+This section loads the packages we need in this lecture.
+
+```{r}
+library(tidyverse)
+```
+
+### 1. Import and Export the V-Dem Data
+
+This section loads the VDEM dataset and describe its basic information
+
+```{r}
+d <- read_csv("_DataPublic_/vdem/1984_2022/vdem_1984_2022_external.csv")
+spec(d)
+```
+
+getwd()\
+\
+\
+
+### 2. Select economic development indicatorsd
+
+First, we look at the identifiers of the data.
+
+```{r}
+names(d)
+```
+
+```{r}
+d |> select(country_name, country_id, year) |>
+  distinct()
+```
+
+```{r}
+# which countries are in this dateset
+d |> select(country_name) |> distinct()
+```
+
+```{r}
+d |> select(year)
+```
+
+select both the country identifiers, GDP, and GDP per capita.
+
+```{r}
+d |> select(country_name, country_id, year, e_gdp, e_gdppc)
+```
+
+```{r}
+d_gdp <- d |>
+select(country_name, country_id, year, e_gdp, e_gdppc)
+d_gdp
+```
+
+### 3. Rename Column to make names informative
+
+```{r}
+d_gdp |>
+  rename("GDP"="e_gdp", "GDP_per_capita" ="e_gdppc", "country" = "country_name", "ID"="country_id", "Year" = "year")
+print(d_gdp)
+```
+
+```{r}
+d_gdp <- d_gdp |>
+  rename( "GDP"="e_gdp", "GDP_per_capita" ="e_gdppc", "country" = "country_name", "ID"="country_id", "Year" = "year")
+d_gdp
+```
+
+### 4. slice rows
+
+```{r}
+# want countries-years with 
+d_gdp |>
+  slice_max(order_by= GDP , n=10)
+```
+
+```{r}
+d_gdp |>
+  slice_sample(n = 10) # sample 10 observations
+```
+
+```{r}
+d_gdp |>
+  slice_sample(prop = 0.1) 
+```
+
+### 5. Subset data by row
+
+```{r}
+# want :2000-2005 data 
+d_gdp |>
+   filter(Year >= 2000 & Year >= 2005)
+```
+
+```{r}
+d_gdp |> 
+  filter(country == "China")
+```
+
+```{r}
+d_gdp |> filter(Year >= 2000 & Year <= 2005|country == "China")
+```
+
+### 6. Arrange
+
+```{r}
+#want: sort the row by GDP per capita
+d_gdp |> arrange(GDP_per_capita)
+```
+
+### 7.Perform 4,5,6 group by group: group_by, ungroup
+
+```{r}
+#want: for each country, we want the year with the highest GDP
+
+d_gdp |>
+  group_by(country) |>
+  slice_max(GDP, n=1)
+```
+
+```{r}
+# How may entries are there for each country
+d_gdp |>
+  group_by(country) |>
+  count()
+?count()
+```
+
+```{r}
+#want: year when countries has worst GDP
+d_gdp |>
+  group_by(country) |>
+  slice_min(order_by=GDP, n=1)
+```
+
+### 8. mutate: create new column
+
+#doesn't change the number of rows
+
+```{r}
+# create a new column, takes the value of 1
+d_gdp |> mutate(New=1)
+```
+
+```{r}
+d_gdp |> mutate(New=GDP)
+d_gdp |> mutate(New=log(GDP)+1)
+```
+
+```{r}
+#more complex situation:
+#want: New column to be GDP relative to the average GDP in the world 1984-2022
+
+d_gdp |> mutate(GDP_over_avg=GDP/mean(GDP,na.rm=TRUE))
+#na.rm=true---to ignore NA
+```
+
+```{r}
+#want: New column to be GDP relative to the average GDP of the country 1984-2022
+
+d_gdp |> 
+  group_by(country) |>
+mutate(GDP_over_avg=GDP/ mean(GDP, na.rm=TRUE))
+```
+
+```{r}
+#country-year development level with reference to that of 1984.
+?first
+```
+
+```{r}
+d_gdp |>
+  group_by(country) |>
+  arrange(Year) |>
+  mutate(GDP_over_1984 = GDP/ first(GDP)) |>
+  ungroup()|>
+  arrange(country,Year)
+```
+
+```{r}
+#year-on-year economic growth.
+#?lag
+
+d_gdp|>
+  group_by(country)|>
+  arrange(Year)|>
+  mutate(GDP_yoy_change= GDP - lag(GDP,n=1))|>
+  ungroup()|>
+  arrange(country,Year)
+```
+
+### 9.summary
+
+#change number of rows
+
+```{r}
+#data integrity check (find missing data)
+d_gdp|>
+  #create a column that indicates whether the value is missing
+  mutate(GDP_missing= as.numeric(is.na(GDP)), .after=GDP)|>
+           group_by(country)|>
+           summarize(N_GDP_missing=sum(GDP_missing))
+#.after=GDP--put it after the GDP column
+```
+
+```{r}
+#want: average GDP level of the world
+d_gdp|>
+  summarise(gdp_average =mean(GDP, na.rm=TRUE),
+            GDP_per_capita_average=mean(GDP_per_capita,na.rm=TRUE))
+```
+
+```{r}
+# average development level
+d_gdp |>
+  group_by(country)|>
+  summarize(GDP_average=mean(GDP,na.rm=TRUE),
+            GDPpc_average=mean(GDP_per_capita, na.rm=TRUE))
+```
+
+```{r}
+#GDP growth and GDP per capita:comparing 2020 with 1984
+d_gdp |>
+  filter(Year>=1984,Year<=2019)|>
+  group_by(country) |>
+  summarise(GDP_growth_2019_1984=(last(GDP)-first(GDP))/first(GDP),
+            GDP_per_capita_2019_1984=(last(GDP_per_capita)-first(GDP_per_capita))/first(GDP_per_capita))|>
+  ungroup()|>
+  arrange(country)
+```
+
+### 10. Final note
+
+\# pipe "\|\>" : to reduce the intermediate output
+
+\# "\|\>"(new version) and "%\>%"(can handle more complicated task)

@@ -1,6 +1,14 @@
 ---
+title: "inclass_exercise_2"
+author: "Wenxiao HU"
+out put:
+  pdf_document: null
+output: pdf_document
 ---
----
+```{r,setup,include=FALSE}
+knitr::opts_chunk$set(collapse=TRUE)
+```
+
 
 ## [Coodbook lookup]{.underline}
 

@@ -1,0 +1,125 @@
+---
+---
+---
+
+## [Coodbook lookup]{.underline}
+
+1.  Indicators include *Eduacation 15+* (e_peaveduc) and *Educational inequality, Gini* (e_peedgini).
+
+2.  For *Eduacation 15+* (e_peaveduc), the coverage is from 1820-2022.
+
+    For *Educational inequality, Gini* (e_peedgini), the coverage is from 1850-2010.
+
+3.  For *Eduacation 15+* (e_peaveduc), one of the links to the sources is Clio-Infra (2018), 'Clio-Infra Project (Database)'. URL: <http://www.clio-infra.eu/>
+
+    For *Educational inequality, Gini* (e_peedgini), one of the links to the sources is van Leeuwen, B. V., Van Leeuwen-Li, J. & Földvári, P. (2012a), 'Education as a driver of income inequality in twentieth-century Africa', MPRA Paper 43574, University Library of Munich, Germany . URL: <https://mpra.ub.uni-muenchen.de/43574/>
+
+## [Subset by column]{.underline}
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+d <- read_csv("_DataPublic_/vdem/1984_2022/vdem_1984_2022_external.csv")
+```
+
+```{r}
+names(d)
+```
+
+```{r}
+d_edu <- d |>
+  select(country_name,country_id,year,e_peaveduc,e_peedgini)
+d_edu
+```
+
+```{r}
+d_edu <-d_edu |> 
+  rename("edu_level"="e_peaveduc","edu_inequality"="e_peedgini","country"="country_name","ID"="country_id")
+d_edu
+```
+
+## [Subset by rows]{.underline}
+
+```{r}
+#coutries-years have the highest education level
+d_edu |>slice_max(order_by=edu_level, n=5)
+```
+
+```{r}
+#countries-years that suffer from the most severe inequality
+d_edu |>slice_max(order_by=edu_inequality,n=5)
+```
+
+## [Summarize the data]{.underline}
+
+```{r}
+#check data availablity (edu_level)
+d_edu |>
+  mutate(edu_level_available=as.numeric(!is.na(edu_level)), .after=edu_level) |>
+  group_by(country) |>
+  summarise(N_edu_level_available=sum(edu_level_available))
+```
+
+```{r}
+#check data availability(edu_inequality)
+d_edu |>
+  mutate(edu_inequality_available=as.numeric(!is.na(edu_inequality)), .after=edu_inequality) |>
+  group_by(country) |>
+  summarise(N_edu_inequality_available=sum(edu_inequality_available))
+```
+
+```{r}
+#average level of education quality
+d_edu |>
+  group_by(country) |>
+  summarize(edu_level_average=mean(edu_level,na.rm=TRUE),
+            edu_inequality_average=mean(edu_inequality,na.rm=TRUE))
+```
+
+```{r}
+#change of education quality 
+#Most countries have edu_inequality records in 2010
+d_edu |>
+  filter(year>=1984,year<=2010)|>
+  group_by(country)|>
+  arrange(year)|>
+  summarise(edu_level_change_2010_1984=last(edu_level)-first(edu_level),
+            edu_inequality_change_2010_1984=last(edu_inequality)-first(edu_inequality))|>
+  ungroup()|>
+  arrange(country)
+```
+
+### Briefly discuss
+
+```{r}
+#examine the data 
+d_edu |>
+  group_by(country) |>
+  summarize(edu_level_average=mean(edu_level,na.rm=TRUE),
+            edu_inequality_average=mean(edu_inequality,na.rm=TRUE))|>
+  slice_max(order_by=edu_inequality_average,n=181)
+```
+
+```{r}
+d_edu |>
+  group_by(country) |>
+  summarize(edu_level_average=mean(edu_level,na.rm=TRUE),
+            edu_inequality_average=mean(edu_inequality,na.rm=TRUE))|>
+  slice_min(order_by=edu_level_average,n=181)
+```
+
+```{r}
+d_edu |>
+  filter(year>=1984,year<=2010)|>
+  group_by(country)|>
+  arrange(year)|>
+  summarise(edu_level_change_2010_1984=last(edu_level)-first(edu_level),
+            edu_inequality_change_2010_1984=last(edu_inequality)-first(edu_inequality))|>
+  ungroup()|>
+  arrange(country)|>
+  slice_min(order_by=edu_level_change_2010_1984,n=181)
+```
+
+In terms of average educational level and average educational inequality index, the countries with the best performance include: Germany, Australia, the United Kingdom, Barbados, Denmark, Sweden, etc. The worst countries include Burkina Faso, Mali, Nigeria, Somalia, etc. Looking from the changes from 1984 to 2010, countries such as Botswana, Singapore, and Libya have made great progress. Tajikistan, North Korea, Russia and other countries have not changed much.

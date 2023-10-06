@@ -51,6 +51,8 @@ library(tidyverse)
 
 ```{r}
 d <- read_csv("_DataPublic_/vdem/1984_2022/vdem_1984_2022_external.csv")
+
+spec(d)
 ```
 
 ### 1. Reshape the V-Dem dataset
@@ -59,13 +61,36 @@ d <- read_csv("_DataPublic_/vdem/1984_2022/vdem_1984_2022_external.csv")
 # want: each row contain country-year-variable
 
 d|>select(country_name)|>distinct()
-#why github is not working!!
+
+d_subset <- d|> select(country_name,year,starts_with("e_"))
+
+d_subset_long <- d_subset |>pivot_longer (cols=starts_with("e"))
+```
+
+```{r}
+d_subset_wide_year <-
+  d_subset_long |>pivot_wider(names_from=year,
+                              values_from = value)
 ```
 
 ### 2. Stack multiple subsets of the V-Dem datasets
 
 ```{r}
-# INSERT CODE
+d_VdemIndex <- read_csv("_DataPublic_/vdem/1984_2022/vdem_1984_2022_index.csv")
+```
+
+```{r}
+d_stack <- bind_cols(d, d_VdemIndex)
+```
+
+```{r}
+#want: stack two tables by rows
+d_1945_1983 <- read_csv("_DataPublic_/vdem/1945_1983/vdem_1945_1983_external.csv")
+```
+
+```{r}
+d_1945_1922 <- bind_rows(d,d_1945_1983)
+d_1945_1922 |>select(year) |>distinct() |>arrange(year)
 ```
 
 ### 3. Join multiple regional subsets of the V-Dem datasets

@@ -1,0 +1,407 @@
+---
+title: "POLI3148 Group Project"
+author: "Athena Zhang"
+date: "2023-12-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# loading package
+library(tidyverse)
+library(lubridate)
+library(tidytext)
+library(SnowballC)
+library(ggwordcloud)
+library(wordcloud2)
+library(GGally)
+library(ggplot2)
+library(topicmodels)
+```
+
+# 1. Data cleaning for policy and index
+
+```{r}
+# importing data
+d <- read.csv('Group_project/data/ALL_COUNTRY.csv')
+```
+
+```{r}
+# selecting relevant data
+policy <- d |> 
+  select('Country', 'Policy.Category', 'Name.of.policy', 'Energy.Type', 'Date.of.entry.info.force','Value.committed..USD')
+
+```
+
+```{r}
+# removing NA for date of entry
+policy$'Date.of.entry.info.force' <- na_if(policy$'Date.of.entry.info.force', "")
+policy <- policy |>
+  filter(!is.na(Date.of.entry.info.force))
+```
+
+```{r}
+# remove 0 for value committed
+policy <- policy |>
+  filter(Value.committed..USD != 0)
+```
+
+```{r}
+# keep 'clean conditional' and 'clean unconditional' policies
+policy <- policy |>
+  filter(Policy.Category %in% c('clean conditional', 'clean unconditional'))
+```
+
+```{r}
+# importing data
+epi <- read_csv('Group_project/data/epi2022regionalresults05302022.csv')
+```
+
+```{r}
+# selecting only country and climate change relevant measures
+cc <- epi |>
+  select(country, PCC.new)
+```
+
+```{r}
+setdiff(policy$Country, cc$country) #in policy but not in cc
+# recode countries in cc
+cc <- cc |> mutate(country = recode(country,
+                           "Netherlands" = "The Netherlands",
+                           "United States of America" = "United States",
+                           "Viet Nam" = "Vietnam",
+                           "South Korea" = "Republic of Korea"))
+```
+
+```{r}
+# remove 'European Institutions' from country in policy
+policy <- policy |>
+  filter(Country != 'European Institutions')
+```
+
+```{r}
+#rename for 'country'
+cc <- rename(cc, Country = country)
+```
+
+## 2. Text mining for policy data
+
+## 2.1 data wrangling
+
+```{r}
+policy_tokenized=policy |>
+  select(Country,`Name.of.policy`,'Date.of.entry.info.force')|>
+  unnest_tokens(word,`Name.of.policy`)
+policy_tokenized <- policy_tokenized |>
+  filter(!str_detect(word, "[0-9]+"))
+```
+
+```{r}
+# remove stop words
+data("stop_words")
+policy_tokenized=policy_tokenized |>
+  anti_join(stop_words,by="word")
+```
+
+```{r}
+#create stem
+policy_tokenized=policy_tokenized |>
+  mutate(stem=wordStem(word))
+```
+
+## 2.2 data analysis
+
+### A. word frequency (bar chart and word cloud)
+
+```{r}
+word_frequency = policy_tokenized |>
+  count(stem, sort = TRUE)
+```
+
+```{r}
+word_frequency |>
+  slice(1:20) |>
+  mutate(stem = reorder(stem, n)) |>
+  ggplot(aes(x = n, y = stem,fill=n)) +
+  geom_col() +
+  scale_fill_gradient(low="chartreuse2",high="chartreuse4")+
+  theme_bw()
+```
+
+```{r}
+word_frequency |>
+  slice(1:100)|>
+  ggplot(aes(label=stem,size=n))+
+  scale_size_area(max_size=8)+
+  geom_text_wordcloud()+
+  theme_minimal()
+```
+
+```{r}
+wordcloud2(word_frequency,color="darkgreen")
+```
+
+### B. Use topic modeling to invest more about keywords
+
+```{r}
+#calculate the number for each keywords in country-level
+country_word_frequency <- policy_tokenized |>
+  group_by(Country, stem) |>
+  count()
+```
+
+```{r}
+#create document-term matrix
+dtm = country_word_frequency |> cast_dtm(Country,stem,n)
+```
+
+```{r}
+#set number of topics
+K=10
+
+# Set random number generator seed
+set.seed(500)
+
+# compute the LDA model, inference via 1000 iterations of Gibbs sampling
+m_tm = LDA(dtm, K, method="Gibbs", 
+            control=list(iter = 500, verbose = 25))
+
+summary(m_tm)
+```
+
+```{r}
+#clean result of topic models
+## beta: How words map to topics
+sum_tm_beta = tidy(m_tm, matrix = "beta")
+
+## gamma: How documents map on topics
+sum_tm_gamma = tidy(m_tm, matrix = "gamma") |>
+  rename("uid" = "document") 
+
+sum_tm_gamma_wide = sum_tm_gamma |>
+  pivot_wider(names_from = "topic", values_from = "gamma", names_prefix = "topic_")
+```
+
+```{r}
+#visualize topic modeling result
+sum_tm_gamma |>
+  group_by(topic) |>
+  summarise(sum_gamma = sum(gamma)) |>
+  arrange(desc(sum_gamma))
+
+TOP_N_WORD = 10
+
+topic_top_word = sum_tm_beta |>
+  rename("word" = "term") |>
+  group_by(topic) |>
+  slice_max(beta, n = TOP_N_WORD) |>
+  arrange(topic, desc(beta))
+```
+
+```{r}
+# topics in bar charts
+topic_top_word |>
+  mutate(word = reorder_within(word, beta, topic)) |>
+  ggplot(aes(y = word, x = beta)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~topic, scales = "free_y") +
+  scale_y_reordered() + # Very interesting function. Use with reorder_within
+  labs(
+    title = "Topic Modeling",
+    subtitle = "Top words associated with each topic"
+  )
+```
+
+### C. compare policy design between 2020,2021,2022
+
+```{r}
+# Calculate term frequencies for 2020, 2021 and 2022 respectively
+word_frequency_compare_22_21_20 <- policy_tokenized |>
+  mutate(year = year(dmy(Date.of.entry.info.force)), .after = "Date.of.entry.info.force") |>
+  # Extract the year of the speech
+  filter(year == 2020 | year == 2021 | year == 2022) |>
+  group_by(year, stem) |>
+  count(sort = TRUE) |>
+  pivot_wider(names_from = "year", values_from = "n", 
+              names_prefix = "n_", values_fill = 0) |>
+  ungroup() |>
+  mutate(
+    prop_2022 = n_2022 / sum(n_2022),
+    prop_2021 = n_2021 / sum(n_2021),
+    prop_2020 = n_2020 / sum(n_2020)
+  )
+```
+
+```{r}
+# plot correlation matrix for the three variables
+ word_frequency_compare_22_21_20|>
+ select(prop_2022,prop_2021,prop_2020)|>
+ ggpairs(
+ columns = c("prop_2022","prop_2021","prop_2020"),
+ columnLabels= c("2022","2021","2020"),
+ upper= list(continuous=wrap("cor",method="spearman",color="blue")),
+ diag= list(continuous=wrap("barDiag",bins=30,fill="white",color="black")),
+ lower= list(continuous=wrap("smooth",alpha=0.1,color="gray")))+
+ theme_bw()
+```
+
+plot the wordcloud for 2020, 2021,2022 based on the differences
+
+```{r}
+#calculate the differences
+tmp_plot_20 = word_frequency_compare_22_21_20 |>
+  mutate(diff = prop_2020 - prop_2021) |>
+  slice_max(diff, n = 30) |>
+  arrange(desc(diff))
+
+tmp_plot_21 = word_frequency_compare_22_21_20 |>
+  mutate(diff = prop_2021 - prop_2020) |>
+  slice_max(diff, n = 30) |>
+  arrange(desc(diff))
+
+tmp_plot_22 = word_frequency_compare_22_21_20 |>
+  mutate(diff = prop_2022 - prop_2021) |>
+  slice_max(diff, n = 30) |>
+  arrange(desc(diff))
+```
+
+```{r}
+#merge the data
+tmp_plot_merge = tmp_plot_21 |> 
+  mutate(Year = "2021") |>
+  bind_rows(
+    tmp_plot_20 |> mutate(Year = "2020")
+  ) |> 
+  bind_rows(
+    tmp_plot_22 |> mutate(Year = "2022")
+  )
+```
+
+```{r}
+#draw wordcloud
+tmp_plot_merge |>
+  ggplot(aes(label = stem, y = Year, color = Year, size = abs(diff))) +
+  geom_text_wordcloud_area() +
+  scale_size_area(max_size = 30) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+
+### D. calculate country-level word frequencies
+
+```{r}
+#calculate the proprtion for each keywords
+policy_frequencies <- policy_tokenized |>
+  group_by(Country, stem) |>
+  count()|>
+  mutate(prop=n/sum(word_frequency$n)*100)
+```
+
+```{r}
+# creating pivoted dataframe to perform linear regression
+d_policy_pivoted <- policy_frequencies |>
+  pivot_wider(
+    id_cols = Country,
+    names_from = stem,
+    values_from = prop
+  )
+```
+
+```{r}
+# turn NA values to 0
+d_policy_pivoted[is.na(d_policy_pivoted)] <- 0
+```
+
+```{r}
+#joining policy data and climate change index data
+policy_cc <- left_join(d_policy_pivoted, cc, by = "Country")
+```
+
+```{r}
+#relocating cc index column
+policy_cc <- policy_cc |> relocate(PCC.new, .after = Country)
+```
+
+# 3. LASSO regression: Keywords (IV) and Climate Change Index (DV)
+
+```{r}
+# set predictors and outcome
+y <- policy_cc$PCC.new
+
+x <- policy_cc |> select(agricultur:yorker) |> as.matrix()
+```
+
+```{r}
+# load LASSO regression package
+library(glmnet)
+```
+
+```{r}
+model <- glmnet(x, y , lambda = 2, family = "gaussian", intercept = TRUE, alpha = 1)
+
+summary(model)
+
+lasso_coef <- model$beta |> as.matrix() |> as.data.frame() |> 
+  rownames_to_column(var = "predictor") |> as_tibble()
+
+lasso_coef_nonzero <- lasso_coef |> filter(s0 != 0)
+
+lasso_coef_nonzero |> 
+  ggplot() + geom_bar(aes(y = predictor, x = s0), stat = "identity")
+
+```
+
+# 4. Data cleaning for budget data
+
+```{r}
+# aggregating buget by energy type
+policy_budget <- policy |> 
+  group_by(Country, `Energy.Type`) |>
+  summarise(total_budget = sum(`Value.committed..USD`))
+```
+
+```{r}
+# pivoting table so energy type is the variable
+policy_budget_pivoted <- policy_budget |>
+  pivot_wider(
+    id_cols = Country,
+    names_from = `Energy.Type`,
+    values_from = total_budget
+  )
+```
+
+```{r}
+# NA values to 0
+policy_budget_pivoted[is.na(policy_budget_pivoted)] <- 0
+```
+
+```{r}
+#combining budget and cc
+budget_cc <- left_join(policy_budget_pivoted, cc, by = "Country")
+```
+
+# 5. LASSO regression: Budget by energy type (IV) and Climate Change Index (DV)
+
+```{r}
+#outcome variable = EPI
+y <- budget_cc$PCC.new
+#predictor variables = budget (by energy type)
+x <- budget_cc |> select(`solar`:`oil and oil products`) |> as.matrix()
+```
+
+```{r}
+model <- glmnet(x, y , lambda = 0.01, family = "gaussian", intercept = TRUE, alpha = 1)
+
+summary(model)
+
+lasso_coef <- model$beta |> as.matrix() |> as.data.frame() |> 
+  rownames_to_column(var = "predictor") |> as_tibble()
+
+lasso_coef_nonzero <- lasso_coef |> filter(s0 != 0)
+
+lasso_coef_nonzero |> 
+  ggplot() + geom_bar(aes(y = predictor, x = s0), stat = "identity")
+```

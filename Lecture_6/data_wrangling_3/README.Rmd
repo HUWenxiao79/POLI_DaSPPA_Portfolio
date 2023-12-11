@@ -484,21 +484,21 @@ Comparing the two output types
 
 \footnotesize
 
-+------------+----------------------------------------------------------+------------------------------------------------------------------------------------------+
-| Type       | Pro                                                      | Con                                                                                      |
-+============+==========================================================+==========================================================================================+
-| `.csv`     | -   Readable outside R                                   | -   Variable types may change when you read it back if you do not carefully specify them |
-|            |                                                          |                                                                                          |
-|            | -   Conveniently convertible to Excel files              | -   Error-prone with *text* data (encoding, line breaks etc.)                            |
-|            |                                                          |                                                                                          |
-|            |                                                          | -   (Maybe) takes longer to read                                                         |
-+------------+----------------------------------------------------------+------------------------------------------------------------------------------------------+
-| `.rds`     | -   **Replicable**: Get precisely how the data are saved | -   Can't read `.rds` outside R                                                          |
-|            |                                                          |                                                                                          |
-|            | -   Smaller files (if stick with default compression)    |                                                                                          |
-|            |                                                          |                                                                                          |
-|            | -   (Sometimes) faster read/write                        |                                                                                          |
-+------------+----------------------------------------------------------+------------------------------------------------------------------------------------------+
++--------+----------------------------------------------------------+------------------------------------------------------------------------------------------+
+| Type   | Pro                                                      | Con                                                                                      |
++========+==========================================================+==========================================================================================+
+| `.csv` | -   Readable outside R                                   | -   Variable types may change when you read it back if you do not carefully specify them |
+|        |                                                          |                                                                                          |
+|        | -   Conveniently convertible to Excel files              | -   Error-prone with *text* data (encoding, line breaks etc.)                            |
+|        |                                                          |                                                                                          |
+|        |                                                          | -   (Maybe) takes longer to read                                                         |
++--------+----------------------------------------------------------+------------------------------------------------------------------------------------------+
+| `.rds` | -   **Replicable**: Get precisely how the data are saved | -   Can't read `.rds` outside R                                                          |
+|        |                                                          |                                                                                          |
+|        | -   Smaller files (if stick with default compression)    |                                                                                          |
+|        |                                                          |                                                                                          |
+|        | -   (Sometimes) faster read/write                        |                                                                                          |
++--------+----------------------------------------------------------+------------------------------------------------------------------------------------------+
 
 ## Saving Your Outputs after Data Wrangling
 

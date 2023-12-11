@@ -227,7 +227,7 @@ d |> ggplot(aes(x = gdppc)) + geom_histogram() +
        caption = "X-axis is re-scaled.")
 ```
 
-## Skewed Distribution: Transform Variables 
+## Skewed Distribution: Transform Variables
 
 #more transparent way (better)
 
